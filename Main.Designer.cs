@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Main));
             this.buttonDLgame = new System.Windows.Forms.RadioButton();
             this.buttonDLserver = new System.Windows.Forms.RadioButton();
             this.PathInput = new System.Windows.Forms.TextBox();
@@ -181,6 +182,8 @@
             this.ClientSize = new System.Drawing.Size(405, 248);
             this.Controls.Add(this.tabControl);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.MaximizeBox = false;
             this.Name = "Main";
             this.ShowIcon = false;
             this.Text = "BombSquad Downloader for Windows";

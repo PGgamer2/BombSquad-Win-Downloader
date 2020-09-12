@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
@@ -85,7 +86,14 @@ namespace BombSquad_Win_Downloader
         private void DisplayChangelog()
         {
             DLButton.Enabled = true;
-            webBrowserChangelog.DocumentText = Markdown.ToHtml(File.ReadAllText(changelogTempPath));
+            try
+            {
+                webBrowserChangelog.DocumentText = Markdown.ToHtml(File.ReadAllText(changelogTempPath));
+            }
+            catch (Exception error)
+            {
+                Console.WriteLine("An error occurred while converting to Markdown or downloading the changelog: ", error.Message);
+            }
         }
 
         private void BrowseButton_Click(object sender, EventArgs e)
@@ -98,21 +106,57 @@ namespace BombSquad_Win_Downloader
         private void DLButton_Click(object sender, EventArgs e)
         {
             Directory.CreateDirectory(PathInput.Text);
-            if (Directory.Exists(PathInput.Text) && !Directory.EnumerateFileSystemEntries(PathInput.Text).Any())
+            if (Directory.Exists(PathInput.Text) && IsValidPath(PathInput.Text))
             {
                 DialogResult confirmBox = MessageBox.Show($"Are you sure you want to download the program in this directory?\n({PathInput.Text})", "Are you sure?", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (confirmBox == DialogResult.Yes)
                 {
+                    if (Directory.EnumerateFileSystemEntries(PathInput.Text).Any())
+                    {
+                        DialogResult notEmptyFolderConfirmation = MessageBox.Show("This directory is not empty. Every file inside this folder will be deleted.\nAre you really sure to continue?", "Not an empty folder", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                        if (notEmptyFolderConfirmation != DialogResult.Yes)
+                            return;
+                    }
+
                     try
                     {
                         // Get latest version
-                        latestVersion = File.ReadLines(changelogTempPath).First();
-                        latestVersion = Regex.Replace(latestVersion, @"\(.*?\)", "");
-                        latestVersion = latestVersion.Replace(" ", "").Replace("#", "");
+                        string fullChangelog;
+                        using (StreamReader streamReader = new StreamReader(changelogTempPath, Encoding.UTF8))
+                        {
+                            fullChangelog = streamReader.ReadToEnd();
+                        }
+                        Regex versionpattern = new Regex(@"\d+(\.\d+)+");
+                        foreach (Match match in versionpattern.Matches(fullChangelog))
+                        {
+                            WebRequest webRequest = WebRequest.Create(
+                                "https://files.ballistica.net/bombsquad/builds/BombSquad_Windows_" + match.Value + ".zip"
+                            );
+                            WebResponse webResponse;
+                            try
+                            {
+                                webResponse = webRequest.GetResponse();
+                                webResponse.Close();
+                            }
+                            catch
+                            {
+                                continue;
+                            }
+
+                            latestVersion = match.Value;
+                            break;
+                        }
+
+                        if (String.IsNullOrEmpty(latestVersion))
+                        {
+                            MessageBox.Show("Cannot get the latest version of the game from the changelog file.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+                        }
                     }
-                    catch (Exception)
+                    catch (Exception error)
                     {
-                        MessageBox.Show("Cannot get the latest version of the game from the changelog file.\nTrying to redownload the changelog...", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        Console.WriteLine(error.Message);
+                        MessageBox.Show("Cannot get the latest version of the game from the changelog file.\nTrying to download again the changelog...", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         startDownload("https://files.ballistica.net/bombsquad/builds/CHANGELOG.md",
                                       changelogTempPath, "Changelog downloaded.", DisplayChangelog);
                         return;
@@ -124,20 +168,19 @@ namespace BombSquad_Win_Downloader
                         downloadURL = "https://files.ballistica.net/bombsquad/builds/BombSquad_Server_Windows_" + latestVersion + ".zip";
                         isServer = true;
                     }
+
                     // Download ZIP file
                     BombSquadFinalPath = PathInput.Text;
                     BombSquadFinalPath = BombSquadFinalPath.Replace('/', '\\');
                     if (!BombSquadFinalPath.EndsWith(@"\")) BombSquadFinalPath += @"\";
                     startDownload(downloadURL, BombSquadTempPath, "ZIP file downloaded. Extracting...", ExtractGame);
                 }
-                else
-                {
+                else if (!Directory.EnumerateFileSystemEntries(PathInput.Text).Any())
                     DeleteDirectory(PathInput.Text);
-                }
             }
             else
             {
-                MessageBox.Show("Please enter a valid and empty directory.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Please enter a valid directory.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -158,7 +201,7 @@ namespace BombSquad_Win_Downloader
                         }
 
                         if (Directory.Exists(BombSquadFinalPath))
-                            Directory.Delete(BombSquadFinalPath);
+                            DeleteDirectory(BombSquadFinalPath);
 
                         if (isServer)
                             Directory.Move(ExtractedFolderTemp + "BombSquad_Server_Windows_" + latestVersion, BombSquadFinalPath);
@@ -183,15 +226,19 @@ namespace BombSquad_Win_Downloader
                         IWshRuntimeLibrary.WshShell shell = new IWshRuntimeLibrary.WshShell();
                         string exec = BombSquadFinalPath + "BombSquad.exe";
                         if (isServer)
-                            exec = BombSquadFinalPath + "launch_bombsquad_server.bat";
+                            exec = Environment.GetEnvironmentVariable("windir") + @"\system32\cmd.exe";
                         IWshRuntimeLibrary.IWshShortcut shortcut = (IWshRuntimeLibrary.IWshShortcut)shell.CreateShortcut(shortcutAddress);
                         shortcut.TargetPath = exec;
+                        shortcut.WorkingDirectory = BombSquadFinalPath;
+                        shortcut.Arguments = "/c \"start launch_bombsquad_server.bat\"";
                         shortcut.Save();
                     }
-                    catch (Exception)
+                    catch (Exception error)
                     {
                         DLInfo.Invoke((MethodInvoker)delegate ()
                         {
+                            Console.WriteLine(error.Message);
+                            MessageBox.Show(error.Message, "Error " + error.HResult.ToString(), MessageBoxButtons.OK, MessageBoxIcon.Error);
                             DLInfo.Text = "An error has occurred while extracting or downloading the file.";
                             DLButton.Enabled = true;
                         });
@@ -228,21 +275,28 @@ namespace BombSquad_Win_Downloader
 
         public static void DeleteDirectory(string target_dir)
         {
-            string[] files = Directory.GetFiles(target_dir);
-            string[] dirs = Directory.GetDirectories(target_dir);
-
-            foreach (string file in files)
+            try
             {
-                File.SetAttributes(file, FileAttributes.Normal);
-                File.Delete(file);
-            }
+                string[] files = Directory.GetFiles(target_dir);
+                string[] dirs = Directory.GetDirectories(target_dir);
 
-            foreach (string dir in dirs)
+                foreach (string file in files)
+                {
+                    File.SetAttributes(file, FileAttributes.Normal);
+                    File.Delete(file);
+                }
+
+                foreach (string dir in dirs)
+                {
+                    DeleteDirectory(dir);
+                }
+
+                Directory.Delete(target_dir, false);
+            }
+            catch (Exception error)
             {
-                DeleteDirectory(dir);
+                Console.WriteLine(error);
             }
-
-            Directory.Delete(target_dir, false);
         }
 
         private void buttonDLgame_CheckedChanged(object sender, EventArgs e)
@@ -255,6 +309,32 @@ namespace BombSquad_Win_Downloader
         {
             if (PathInput.Text == Environment.GetEnvironmentVariable("PROGRAMFILES") + @"\BombSquad\")
                 PathInput.Text = Environment.GetEnvironmentVariable("PROGRAMFILES") + @"\BombSquad Server\";
+        }
+
+        private bool IsValidPath(string path, bool exactPath = true)
+        {
+            bool isValid = true;
+
+            try
+            {
+                string fullPath = Path.GetFullPath(path);
+
+                if (exactPath)
+                {
+                    string root = Path.GetPathRoot(path);
+                    isValid = string.IsNullOrEmpty(root.Trim(new char[] { '\\', '/' })) == false;
+                }
+                else
+                {
+                    isValid = Path.IsPathRooted(path);
+                }
+            }
+            catch
+            {
+                isValid = false;
+            }
+
+            return isValid;
         }
     }
 }

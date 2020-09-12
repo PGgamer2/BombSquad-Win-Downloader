@@ -1,4 +1,7 @@
 # BombSquad Windows Downloader
+
+**[Download](https://github.com/PGgamer2/BombSquad-Win-Downloader/releases)**
+
 This project started when I searched for the first time a BombSquad download link for Windows.
 I had to do some researches to find the official link from the [ballistica server](https://files.ballistica.net/bombsquad/builds/).
 
