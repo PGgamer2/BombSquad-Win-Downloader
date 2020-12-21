@@ -1,4 +1,6 @@
+.vs/*
 bin/*
 obj/*
+packages/*
 desktop.ini
 Thumbs.db
