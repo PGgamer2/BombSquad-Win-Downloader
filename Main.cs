@@ -197,13 +197,14 @@ namespace BombSquad_Win_Downloader
 
                         object shDesktop = (object)"Desktop";
                         IWshRuntimeLibrary.WshShell shell = new IWshRuntimeLibrary.WshShell();
-                        string exec = BombSquadFinalPath + "BombSquad.exe";
-                        if (isServer)
-                            exec = Environment.GetEnvironmentVariable("windir") + @"\system32\cmd.exe";
                         IWshRuntimeLibrary.IWshShortcut shortcut = (IWshRuntimeLibrary.IWshShortcut)shell.CreateShortcut(shortcutAddress);
-                        shortcut.TargetPath = exec;
+                        if (isServer) {
+                            shortcut.TargetPath = Environment.GetEnvironmentVariable("windir") + @"\system32\cmd.exe";
+                            shortcut.Arguments = "/c \"start launch_bombsquad_server.bat\"";
+                        } else {
+                            shortcut.TargetPath = BombSquadFinalPath + "BombSquad.exe";
+                        }
                         shortcut.WorkingDirectory = BombSquadFinalPath;
-                        shortcut.Arguments = "/c \"start launch_bombsquad_server.bat\"";
                         shortcut.Save();
                     }
                     catch (Exception error) {
