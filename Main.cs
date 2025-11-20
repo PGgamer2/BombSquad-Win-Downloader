@@ -8,7 +8,6 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
 using Ionic.Zip;
-using Markdig;
 
 namespace BombSquad_Win_Downloader
 {
@@ -81,7 +80,7 @@ namespace BombSquad_Win_Downloader
         {
             DLButton.Enabled = true;
             try {
-                webBrowserChangelog.DocumentText = Markdown.ToHtml(File.ReadAllText(changelogTempPath));
+                webBrowserChangelog.DocumentText = CommonMark.CommonMarkConverter.Convert(File.ReadAllText(changelogTempPath));
             }
             catch (Exception error) {
                 Console.WriteLine(error);
