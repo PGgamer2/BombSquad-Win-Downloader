@@ -19,10 +19,10 @@ namespace BombSquad_Win_Downloader
             InitializeComponent();
         }
 
+        static string changelogTempPath = Environment.GetEnvironmentVariable("Temp") + @"\BombSquadChangelog.md";
+        static string BombSquadTempPath = Environment.GetEnvironmentVariable("Temp") + @"\bombsquad.zip";
         long DLBytesReceived;
         long DLBytesToReceive;
-        string changelogTempPath = Environment.GetEnvironmentVariable("Temp") + @"\BombSquadChangelog.md";
-        string BombSquadTempPath = Environment.GetEnvironmentVariable("Temp") + @"\bombsquad.zip";
         string BombSquadFinalPath;
         bool isServer = false;
         string latestVersion;
@@ -84,7 +84,7 @@ namespace BombSquad_Win_Downloader
                 webBrowserChangelog.DocumentText = Markdown.ToHtml(File.ReadAllText(changelogTempPath));
             }
             catch (Exception error) {
-                Console.WriteLine("An error occurred while converting to Markdown or downloading the changelog: ", error.Message);
+                Console.WriteLine(error);
             }
         }
 
@@ -137,7 +137,7 @@ namespace BombSquad_Win_Downloader
                         }
                     }
                     catch (Exception error) {
-                        Console.WriteLine(error.Message);
+                        Console.WriteLine(error);
                         MessageBox.Show("Cannot get the latest version of the game from the changelog file.\nTrying to download again the changelog...", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         startDownload("https://files.ballistica.net/bombsquad/builds/CHANGELOG.md",
                                       changelogTempPath, "Changelog downloaded.", DisplayChangelog);
@@ -209,8 +209,8 @@ namespace BombSquad_Win_Downloader
                     }
                     catch (Exception error) {
                         DLInfo.Invoke((MethodInvoker)delegate () {
-                            Console.WriteLine(error.Message);
-                            MessageBox.Show(error.Message, "Error " + error.HResult.ToString(), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            Console.WriteLine(error);
+                            MessageBox.Show(error.Source, "Error " + error.HResult.ToString(), MessageBoxButtons.OK, MessageBoxIcon.Error);
                             DLInfo.Text = "An error has occurred while extracting or downloading the file.";
                             DLButton.Enabled = true;
                         });
